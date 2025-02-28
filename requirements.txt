@@ -10,3 +10,4 @@ transformers
 tiktoken
 openai
 sentence-transformers
+nest-asyncio 1.6.0
