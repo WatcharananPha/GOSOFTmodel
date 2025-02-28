@@ -203,3 +203,79 @@ st.markdown(f"""
         }}
     </script>
 """, unsafe_allow_html=True)
+
+# After initializing session state, add:
+if "initialized" not in st.session_state:
+    st.session_state.initialized = False
+
+# Add CSS for suggestion buttons
+st.markdown("""
+    <style>
+        /* Existing CSS styles... */
+        
+        .suggestion-button {
+            background-color: #f0f0f0;
+            border: none;
+            padding: 8px 16px;
+            margin: 4px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .suggestion-button:hover {
+            background-color: #de152c;
+            color: white;
+        }
+        
+        .suggestions-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 16px 0;
+            justify-content: center;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# Add before chat messages display:
+if not st.session_state.initialized:
+    # Automatically ask about today's tasks
+    try:
+        initial_response = qa_chain.invoke({
+            "query": "What are the tasks today? Please list all scheduled customer visits, payments due, and deliveries."
+        })["result"]
+        st.session_state.messages.append({
+            "role": "assistant", 
+            "content": f"👋 Good morning! Here are your tasks for today:\n\n{initial_response}"
+        })
+    except Exception as e:
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": "👋 Good morning! I'm ready to help you with your tasks today."
+        })
+    st.session_state.initialized = True
+
+# Add suggestion buttons after title:
+st.markdown('<div class="suggestions-container">', unsafe_allow_html=True)
+
+# Create suggestion buttons
+suggestions = [
+    "Customer information to meet", 
+    "Customer interests"
+]
+
+for suggestion in suggestions:
+    if st.button(suggestion, key=suggestion, help=f"Click to ask about {suggestion}"):
+        st.session_state.messages.append({"role": "user", "content": suggestion})
+        
+        with st.spinner("Getting information..."):
+            try:
+                response = qa_chain.invoke({"query": suggestion})["result"]
+            except Exception as e:
+                response = f"Error: {e}"
+                
+        st.session_state.messages.append({"role": "assistant", "content": response})
+        st.rerun()
+
+st.markdown('</div>', unsafe_allow_html=True)
