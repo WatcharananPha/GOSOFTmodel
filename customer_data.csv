@@ -1,0 +1,6 @@
+Customer_ID,Customer_Name,Customer_Email,Customer_Phone,Customer_Address,Product_Interest,Partner_Status,Owner_Connection_Interest
+1,John Doe,john.doe@email.com,555-1234,123 Oak St,Apples,Interested,Yes
+2,Jane Smith,jane.smith@email.com,555-5678,456 Pine St,Wheat,Not Interested,No
+3,James Brown,james.brown@email.com,555-8765,789 Maple Ave,Corn,Interested,Yes
+4,Mary Green,mary.green@email.com,555-3456,101 Birch Rd,Soybeans,Interested,No
+5,David White,david.white@email.com,555-1122,202 Cedar Blvd,Rice,Interested,Yes

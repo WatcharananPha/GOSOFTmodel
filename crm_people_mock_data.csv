@@ -1,0 +1,21 @@
+PERSON_ID,FULL_NAME,ROLE,BUSINESS_NAME,PHONE_NUMBER,EMAIL,REGION,PRODUCT_CATEGORY,CREATED_DATE
+PEO001,Person 1,Owner,Business 1,+66 976259557,person1@business.com,North,Vegetables,2025-02-27
+PEO002,Person 2,Distributor,Business 2,+66 942648678,person2@business.com,South,Vegetables,2025-02-27
+PEO003,Person 3,Owner,Business 3,+66 968757866,person3@business.com,South,Vegetables,2025-02-27
+PEO004,Person 4,Supplier,Business 4,+66 939808976,person4@business.com,West,Fruits,2025-02-27
+PEO005,Person 5,Distributor,Business 5,+66 995931168,person5@business.com,North,Vegetables,2025-02-27
+PEO006,Person 6,Retailer,Business 6,+66 947760941,person6@business.com,South,Meat,2025-02-27
+PEO007,Person 7,Owner,Business 7,+66 925054654,person7@business.com,North,Meat,2025-02-27
+PEO008,Person 8,Owner,Business 8,+66 968985000,person8@business.com,South,Grains,2025-02-27
+PEO009,Person 9,Sales Agent,Business 9,+66 958319619,person9@business.com,West,Meat,2025-02-27
+PEO010,Person 10,Distributor,Business 10,+66 997845456,person10@business.com,North,Fruits,2025-02-27
+PEO011,Person 11,Owner,Business 11,+66 941677740,person11@business.com,North,Fruits,2025-02-27
+PEO012,Person 12,Distributor,Business 12,+66 950825177,person12@business.com,West,Dairy,2025-02-27
+PEO013,Person 13,Retailer,Business 13,+66 939332170,person13@business.com,East,Grains,2025-02-27
+PEO014,Person 14,Sales Agent,Business 14,+66 987753195,person14@business.com,South,Meat,2025-02-27
+PEO015,Person 15,Owner,Business 15,+66 949239612,person15@business.com,West,Meat,2025-02-27
+PEO016,Person 16,Distributor,Business 16,+66 979442407,person16@business.com,South,Meat,2025-02-27
+PEO017,Person 17,Sales Agent,Business 17,+66 943567088,person17@business.com,South,Meat,2025-02-27
+PEO018,Person 18,Sales Agent,Business 18,+66 928003614,person18@business.com,East,Dairy,2025-02-27
+PEO019,Person 19,Sales Agent,Business 19,+66 963953156,person19@business.com,East,Meat,2025-02-27
+PEO020,Person 20,Sales Agent,Business 20,+66 957666445,person20@business.com,North,Vegetables,2025-02-27
