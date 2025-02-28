@@ -10,12 +10,9 @@ from langchain_openai import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 warnings.filterwarnings("ignore")
-
-# Initialize session state for tabs
 if "selected_tab" not in st.session_state:
     st.session_state.selected_tab = "shopchat"
 
-# Set page config (must be first Streamlit command)
 st.set_page_config(
     page_title="ShopChat Admin",
     page_icon="https://www.gosoft.co.th/wp-content/uploads/2019/01/cropped-LOGO-gosoft.png",
