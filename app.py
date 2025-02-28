@@ -233,7 +233,7 @@ if not st.session_state.initialized:
     except Exception as e:
         st.session_state.messages.append({
             "role": "assistant",
-            "content": "👋 Good morning! I'm ready to help you with your tasks today."
+            "content": "👋 สวัสดีตอนเช้าค่ะ วันนี้ฉันพร้อมช่วยคุณทำงานแล้วค่ะ"
         })
     st.session_state.initialized = True
 
