@@ -200,7 +200,6 @@ def set_tab(tab_name):
     st.session_state.selected_tab = tab_name
 
 tab_titles = {
-    "shopchat": "ShopChat Admin",
     "3d": "3D Service",
     "schedule": "Schedule",
     "chatbot": "Chatbot",
