@@ -224,11 +224,11 @@ st.markdown("""
 if not st.session_state.initialized:
     try:
         initial_response = qa_chain.invoke({
-            "query": "What are the tasks today? Please list all scheduled customer visits, payments due, and deliveries."
+            "query": "งานในวันนี้มีอะไรบ้าง โปรดระบุรายการนัดหมายเข้าเยี่ยมลูกค้า การชำระเงิน และการจัดส่ง"
         })["result"]
         st.session_state.messages.append({
             "role": "assistant", 
-            "content": f"👋 Good morning! Here are your tasks for today:\n\n{initial_response}"
+            "content": f"👋 สวัสดีตอนเช้าค่ะ นี่คืองานของคุณสำหรับวันนี้:\n\n{initial_response}"
         })
     except Exception as e:
         st.session_state.messages.append({
