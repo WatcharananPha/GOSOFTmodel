@@ -1,3 +1,5 @@
+import asyncio
+import nest_asyncio
 import streamlit as st
 import warnings
 from langchain_community.vectorstores import FAISS
@@ -6,11 +8,24 @@ from langchain.prompts import ChatPromptTemplate
 from langchain.chains import RetrievalQA
 from langchain_openai import ChatOpenAI
 
+nest_asyncio.apply()
+try:
+    loop = asyncio.get_event_loop()
+except RuntimeError:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
 warnings.filterwarnings("ignore")
+
+st.cache_data.clear()
+st.cache_resource.clear()
+
 if "selected_tab" not in st.session_state:
     st.session_state.selected_tab = "shopchat"
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "initialized" not in st.session_state:
+    st.session_state.initialized = False
 
 st.set_page_config(
     page_title="ShopChat Admin",
@@ -18,51 +33,67 @@ st.set_page_config(
     layout="centered"
 )
 
-model_name = "BAAI/bge-m3"
-embeddings = HuggingFaceBgeEmbeddings(
-    model_name=model_name,
-    model_kwargs={"device": "cpu"},
-    encode_kwargs={"normalize_embeddings": True}
-)
+def setup_model():
+    try:
+        model_name = "BAAI/bge-m3"
+        embeddings = HuggingFaceBgeEmbeddings(
+            model_name=model_name,
+            model_kwargs={"device": "cpu"},
+            encode_kwargs={"normalize_embeddings": True}
+        )
+        return embeddings
+    except Exception as e:
+        st.error(f"Error setting up model: {str(e)}")
+        return None
+def load_databases(embeddings):
+    try:
+        customer_db = FAISS.load_local("customer_index", embeddings, allow_dangerous_deserialization=True)
+        crm_db = FAISS.load_local("crm_index", embeddings, allow_dangerous_deserialization=True)
+        return customer_db, crm_db
+    except Exception as e:
+        st.error(f"Error loading databases: {str(e)}")
+        return None, None
 
-customer_db = FAISS.load_local("customer_index", embeddings, allow_dangerous_deserialization=True)
-crm_db = FAISS.load_local("crm_index", embeddings, allow_dangerous_deserialization=True)
-retriever = customer_db.as_retriever(search_kwargs={"k": 2})
+embeddings = setup_model()
+if embeddings:
+    customer_db, crm_db = load_databases(embeddings)
+    if customer_db:
+        retriever = customer_db.as_retriever(search_kwargs={"k": 2})
+        
+        llm = ChatOpenAI(
+            api_key='sk-GqA4Uj6iZXaykbOzIlFGtmdJr6VqiX94NhhjPZaf81kylRzh',
+            base_url='https://api.opentyphoon.ai/v1',
+            model_name="typhoon-v2-70b-instruct"
+        )
 
-llm = ChatOpenAI(
-    api_key='sk-GqA4Uj6iZXaykbOzIlFGtmdJr6VqiX94NhhjPZaf81kylRzh',
-    base_url='https://api.opentyphoon.ai/v1',
-    model_name="typhoon-v2-70b-instruct"
-)
+        template = """
+        You are a Salesman Assistant AI designed to enhance a CRM system.
+        Your responsibilities include:
+        - Reminding salespeople of daily tasks
+        - Providing customer and product details
+        - Planning customer visits
+        - Managing orders and tracking deliveries
+        - Following up on debts and payments
+        - Surveying the market and tracking competitor prices
+        - Assisting with customer communication
+        - Answering questions about products
 
-template = """
-You are a Salesman Assistant AI designed to enhance a CRM system.
-Your responsibilities include:
-- Reminding salespeople of daily tasks
-- Providing customer and product details
-- Planning customer visits
-- Managing orders and tracking deliveries
-- Following up on debts and payments
-- Surveying the market and tracking competitor prices
-- Assisting with customer communication
-- Answering questions about products
+        Use the following pieces of retrieved context to answer the question.
+        If you don't know the answer, just say that you don't know.
+        Use the retrieved information and avoid making up answers.
 
-Use the following pieces of retrieved context to answer the question.
-If you don't know the answer, just say that you don't know.
-Use the retrieved information and avoid making up answers.
+        Retrieved context: {context}
 
-Retrieved context: {context}
+        Salesperson Query: {question}
+        """
 
-Salesperson Query: {question}
-"""
-
-prompt = ChatPromptTemplate.from_template(template)
-qa_chain = RetrievalQA.from_chain_type(
-    llm=llm,
-    chain_type="stuff",
-    retriever=retriever,
-    chain_type_kwargs={"prompt": prompt}
-)
+        prompt = ChatPromptTemplate.from_template(template)
+        qa_chain = RetrievalQA.from_chain_type(
+            llm=llm,
+            chain_type="stuff",
+            retriever=retriever,
+            chain_type_kwargs={"prompt": prompt}
+        )
 
 st.markdown("""
     <style>
