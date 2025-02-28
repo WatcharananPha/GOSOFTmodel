@@ -9,88 +9,23 @@ from langchain.chains import RetrievalQA
 from langchain_openai import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+# Suppress warnings
 warnings.filterwarnings("ignore")
+
+# Initialize session state
 if "selected_tab" not in st.session_state:
     st.session_state.selected_tab = "shopchat"
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
+# Page config
 st.set_page_config(
     page_title="ShopChat Admin",
     page_icon="https://www.gosoft.co.th/wp-content/uploads/2019/01/cropped-LOGO-gosoft.png",
     layout="centered"
 )
 
-# Define CSS styles
-st.markdown("""
-    <style>
-        /* Chat layout */
-        .chat-container { max-width: 500px; margin: auto; }
-        
-        /* User message bubble */
-        .user-bubble {
-            background-color: #de152c;
-            padding: 10px;
-            border-radius: 15px;
-            max-width: 80%;
-            margin-bottom: 10px;
-            float: right;
-            clear: both;
-            color: white;
-        }
-
-        /* Assistant message bubble */
-        .assistant-bubble {
-            background-color: #f0f0f0;
-            padding: 10px;
-            border-radius: 15px;
-            max-width: 80%;
-            margin-bottom: 10px;
-            float: left;
-            clear: both;
-        }
-
-        /* Navigation */
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: black;
-            display: flex;
-            justify-content: space-around;
-            padding: 10px 0;
-            border-radius: 20px 20px 0 0;
-        }
-        
-        .nav-item {
-            color: gray;
-            font-size: 12px;
-            text-align: center;
-            cursor: pointer;
-        }
-
-        .nav-item img {
-            width: 24px;
-            height: 24px;
-        }
-
-        .selected {
-            color: red;
-        }
-
-        /* Title */
-        .title-container {
-            text-align: center;
-            font-size: 32px;
-            font-weight: bold;
-            padding: 10px;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# Load and prepare data
-customer_data = pd.read_csv('Data\customer_data.csv')
-crm_data = pd.read_csv('Data\crm_people_mock_data.csv')
-
+# Initialize embeddings model
 model_name = "BAAI/bge-m3"
 embeddings = HuggingFaceBgeEmbeddings(
     model_name=model_name,
@@ -98,36 +33,10 @@ embeddings = HuggingFaceBgeEmbeddings(
     encode_kwargs={"normalize_embeddings": True}
 )
 
-def prepare_customer_documents(df):
-    documents = []
-    for _, row in df.iterrows():
-        content = " ".join([f"{col}: {str(val)}" for col, val in row.items() if pd.notna(val)])
-        metadata = {"source": "customer_data", "row_id": _}
-        doc = Document(page_content=content, metadata=metadata)
-        documents.append(doc)
-    return documents
-
-def prepare_crm_documents(df):
-    documents = []
-    for _, row in df.iterrows():
-        content = " ".join([f"{col}: {str(val)}" for col, val in row.items() if pd.notna(val)])
-        metadata = {"source": "crm_data", "row_id": _}
-        doc = Document(page_content=content, metadata=metadata)
-        documents.append(doc)
-    return documents
-
-customer_docs = prepare_customer_documents(customer_data)
-crm_docs = prepare_crm_documents(crm_data)
-all_docs = customer_docs + crm_docs
-
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1000,
-    chunk_overlap=100,
-    separators=["\n\n", "\n", " ", ""]
-)
-split_docs = text_splitter.split_documents(all_docs)
-vectorstore = FAISS.from_documents(documents=split_docs, embedding=embeddings)
-retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
+# Load FAISS indices
+customer_db = FAISS.load_local("customer_index", embeddings, allow_dangerous_deserialization=True)
+crm_db = FAISS.load_local("crm_index", embeddings, allow_dangerous_deserialization=True)
+retriever = customer_db.as_retriever(search_kwargs={"k": 2})
 
 llm = ChatOpenAI(
     api_key='sk-GqA4Uj6iZXaykbOzIlFGtmdJr6VqiX94NhhjPZaf81kylRzh',
@@ -164,21 +73,69 @@ qa_chain = RetrievalQA.from_chain_type(
     chain_type_kwargs={"prompt": prompt}
 )
 
-# Initialize chat messages
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# CSS styles (unchanged)
+st.markdown("""
+    <style>
+        .chat-container { max-width: 500px; margin: auto; }
+        .user-bubble {
+            background-color: #de152c;
+            padding: 10px;
+            border-radius: 15px;
+            max-width: 80%;
+            margin-bottom: 10px;
+            float: right;
+            clear: both;
+            color: white;
+        }
+        .assistant-bubble {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 15px;
+            max-width: 80%;
+            margin-bottom: 10px;
+            float: left;
+            clear: both;
+        }
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: black;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            border-radius: 20px 20px 0 0;
+        }
+        .nav-item {
+            color: gray;
+            font-size: 12px;
+            text-align: center;
+            cursor: pointer;
+        }
+        .nav-item img {
+            width: 24px;
+            height: 24px;
+        }
+        .selected { color: red; }
+        .title-container {
+            text-align: center;
+            font-size: 32px;
+            font-weight: bold;
+            padding: 10px;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
-# Display title
+# Display title and chat interface
 st.markdown('<div class="title-container">ShopChat Admin</div>', unsafe_allow_html=True)
 
 # Display chat messages
 for msg in st.session_state.messages:
-    role = msg["role"]
-    message = msg["content"]
-    bubble_class = "user-bubble" if role == "user" else "assistant-bubble"
-    st.markdown(f'<div class="{bubble_class}">{message}</div>', unsafe_allow_html=True)
+    bubble_class = "user-bubble" if msg["role"] == "user" else "assistant-bubble"
+    st.markdown(f'<div class="{bubble_class}">{msg["content"]}</div>', unsafe_allow_html=True)
 
-# Chat input
+# Chat input and processing
 user_input = st.chat_input("Ask about customers or CRM contacts...")
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
@@ -193,6 +150,7 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": response})
     st.markdown(f'<div class="assistant-bubble">{response}</div>', unsafe_allow_html=True)
 
+# Navigation
 def set_tab(tab_name):
     st.session_state.selected_tab = tab_name
 
@@ -206,12 +164,14 @@ tab_titles = {
 if st.session_state.selected_tab in tab_titles:
     st.title(tab_titles[st.session_state.selected_tab])
 
+# Navigation state
 shopchat = "selected" if st.session_state.selected_tab == "shopchat" else ""
 three_d = "selected" if st.session_state.selected_tab == "3d" else ""
 schedule = "selected" if st.session_state.selected_tab == "schedule" else ""
 chatbot = "selected" if st.session_state.selected_tab == "chatbot" else ""
 more = "selected" if st.session_state.selected_tab == "more" else ""
 
+# Bottom navigation HTML
 st.markdown(f"""
     <div class="bottom-nav">
         <div class="nav-item {shopchat}" onclick="setTab('shopchat')">
