@@ -6,23 +6,18 @@ from langchain.prompts import ChatPromptTemplate
 from langchain.chains import RetrievalQA
 from langchain_openai import ChatOpenAI
 
-# Suppress warnings
 warnings.filterwarnings("ignore")
-
-# Initialize session state
 if "selected_tab" not in st.session_state:
     st.session_state.selected_tab = "shopchat"
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Page config
 st.set_page_config(
     page_title="ShopChat Admin",
     page_icon="https://www.gosoft.co.th/wp-content/uploads/2019/01/cropped-LOGO-gosoft.png",
     layout="centered"
 )
 
-# Initialize embeddings model
 model_name = "BAAI/bge-m3"
 embeddings = HuggingFaceBgeEmbeddings(
     model_name=model_name,
@@ -30,7 +25,6 @@ embeddings = HuggingFaceBgeEmbeddings(
     encode_kwargs={"normalize_embeddings": True}
 )
 
-# Load FAISS indices
 customer_db = FAISS.load_local("customer_index", embeddings, allow_dangerous_deserialization=True)
 crm_db = FAISS.load_local("crm_index", embeddings, allow_dangerous_deserialization=True)
 retriever = customer_db.as_retriever(search_kwargs={"k": 2})
@@ -70,7 +64,6 @@ qa_chain = RetrievalQA.from_chain_type(
     chain_type_kwargs={"prompt": prompt}
 )
 
-# CSS styles (unchanged)
 st.markdown("""
     <style>
         .chat-container { max-width: 500px; margin: auto; }
@@ -124,20 +117,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Display title and chat interface
 st.markdown('<div class="title-container">ShopChat Admin</div>', unsafe_allow_html=True)
-
-# Display chat messages
 for msg in st.session_state.messages:
     bubble_class = "user-bubble" if msg["role"] == "user" else "assistant-bubble"
     st.markdown(f'<div class="{bubble_class}">{msg["content"]}</div>', unsafe_allow_html=True)
 
-# Chat input and processing
 user_input = st.chat_input("Ask about customers or CRM contacts...")
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     st.markdown(f'<div class="user-bubble">{user_input}</div>', unsafe_allow_html=True)
-    
     with st.spinner("Fetching customer insights..."):
         try:
             response = qa_chain.invoke({"query": user_input})["result"]
@@ -147,7 +135,6 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": response})
     st.markdown(f'<div class="assistant-bubble">{response}</div>', unsafe_allow_html=True)
 
-# Navigation
 def set_tab(tab_name):
     st.session_state.selected_tab = tab_name
 
@@ -161,14 +148,12 @@ tab_titles = {
 if st.session_state.selected_tab in tab_titles:
     st.title(tab_titles[st.session_state.selected_tab])
 
-# Navigation state
 shopchat = "selected" if st.session_state.selected_tab == "shopchat" else ""
 three_d = "selected" if st.session_state.selected_tab == "3d" else ""
 schedule = "selected" if st.session_state.selected_tab == "schedule" else ""
 chatbot = "selected" if st.session_state.selected_tab == "chatbot" else ""
 more = "selected" if st.session_state.selected_tab == "more" else ""
 
-# Bottom navigation HTML
 st.markdown(f"""
     <div class="bottom-nav">
         <div class="nav-item {shopchat}" onclick="setTab('shopchat')">
@@ -204,11 +189,9 @@ st.markdown(f"""
     </script>
 """, unsafe_allow_html=True)
 
-# After initializing session state, add:
 if "initialized" not in st.session_state:
     st.session_state.initialized = False
 
-# Add CSS for suggestion buttons
 st.markdown("""
     <style>
         /* Existing CSS styles... */
@@ -238,9 +221,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Add before chat messages display:
 if not st.session_state.initialized:
-    # Automatically ask about today's tasks
     try:
         initial_response = qa_chain.invoke({
             "query": "What are the tasks today? Please list all scheduled customer visits, payments due, and deliveries."
@@ -256,13 +237,10 @@ if not st.session_state.initialized:
         })
     st.session_state.initialized = True
 
-# Add suggestion buttons after title:
 st.markdown('<div class="suggestions-container">', unsafe_allow_html=True)
-
-# Create suggestion buttons
 suggestions = [
-    "Customer information to meet", 
-    "Customer interests"
+    "ข้อมูลลูกค้าที่ต้องเข้าพบ", 
+    "ความสนใจของลูกค้า"
 ]
 
 for suggestion in suggestions:
