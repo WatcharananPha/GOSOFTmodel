@@ -1,13 +1,10 @@
 import streamlit as st
-import pandas as pd
 import warnings
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceBgeEmbeddings
-from langchain.schema import Document
 from langchain.prompts import ChatPromptTemplate
 from langchain.chains import RetrievalQA
 from langchain_openai import ChatOpenAI
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
