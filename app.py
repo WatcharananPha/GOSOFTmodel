@@ -14,7 +14,7 @@ if "messages" not in st.session_state:
 
 st.set_page_config(
     page_title="ShopChat Admin",
-    page_icon="https://www.gosoft.co.th/wp-content/uploads/2019/01/cropped-LOGO-gosoft.png",
+    page_icon="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ4QlDNp1fVoSBblzpuijyg_iRravrUZTTdUQ&s",
     layout="centered"
 )
 
