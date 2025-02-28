@@ -88,8 +88,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Load and prepare data
-customer_data = pd.read_csv('customer_data.csv')
-crm_data = pd.read_csv('crm_people_mock_data.csv')
+customer_data = pd.read_csv('Data\customer_data.csv')
+crm_data = pd.read_csv('Data\crm_people_mock_data.csv')
 
 model_name = "BAAI/bge-m3"
 embeddings = HuggingFaceBgeEmbeddings(
