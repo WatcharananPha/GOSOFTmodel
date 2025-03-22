@@ -1,13 +1,7 @@
 streamlit
-pandas
-langchain-community
+nest_asyncio
+llama-parse
+langchain
 langchain-openai
-langchain-text-splitters
 faiss-cpu
-huggingface-hub
-torch
-transformers
-tiktoken
-openai
 sentence-transformers
-nest-asyncio
