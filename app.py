@@ -1,84 +1,97 @@
-import asyncio
-import nest_asyncio
 import streamlit as st
-import warnings
-from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceBgeEmbeddings
-from langchain.prompts import ChatPromptTemplate
-from langchain.chains import RetrievalQA
+import os
+import nest_asyncio
+from llama_parse import LlamaParse
+from langchain.vectorstores import FAISS
 from langchain_openai import ChatOpenAI
+from langchain.chains import RetrievalQA
+from langchain.prompts import PromptTemplate
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.prompts import ChatPromptTemplate
+from langchain.docstore.document import Document
+from langchain.embeddings import HuggingFaceEmbeddings
 
 nest_asyncio.apply()
-try:
-    loop = asyncio.get_event_loop()
-except RuntimeError:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-warnings.filterwarnings("ignore")
-
-st.cache_data.clear()
-st.cache_resource.clear()
-
-if "selected_tab" not in st.session_state:
-    st.session_state.selected_tab = "shopchat"
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "initialized" not in st.session_state:
-    st.session_state.initialized = False
 
 st.set_page_config(
-    page_title="ShopChat Admin",
-    page_icon="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ4QlDNp1fVoSBblzpuijyg_iRravrUZTTdUQ&s",
-    layout="centered",
-    initial_sidebar_state="collapsed"
+    page_title="ShopChat",
+    page_icon="https://scontent.fbkk12-1.fna.fbcdn.net/v/t39.30808-6/450222371_913429780827473_1048735281141013489_n.jpg?_nc_cat=101&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=kP6Im_OcBQAQ7kNvgEoiIW_&_nc_oc=AdmeLO7H-uUW9Q92rRm2nqt-wQHPd3U7_zjmvHICeV556w-sFz4RkEz8pvJK9g7IZpY&_nc_zt=23&_nc_ht=scontent.fbkk12-1.fna&_nc_gid=CqDJ3kyhGE7BMVW5-z-YVQ&oh=00_AYHlWMFasmuqgn5oZztWIVZZ5UWAMbVK8JMaRyoLlWkPeA&oe=67E418DA",
+    layout="centered"
 )
 
-st.markdown("""
-    <style>
-        [data-testid="stSidebar"][aria-expanded="true"] {
-            background-color: #ffffff;
-        {
-            .stApp {
-                background-color: #ffffff;
-            }
-    </style>
-""", unsafe_allow_html=True)     
+llm = ChatOpenAI(
+    openai_api_key="sk-GqA4Uj6iZXaykbOzIlFGtmdJr6VqiX94NhhjPZaf81kylRzh",
+    openai_api_base="https://api.opentyphoon.ai/v1",
+    model_name="typhoon-v2-70b-instruct",
+    temperature=1,
+    max_tokens=8192,
+)
 
-def setup_model():
-    try:
-        model_name = "BAAI/bge-m3"
-        embeddings = HuggingFaceBgeEmbeddings(
-            model_name=model_name,
-            model_kwargs={"device": "cpu"},
-            encode_kwargs={"normalize_embeddings": True}
+parser = LlamaParse(
+    api_key="llx-3QORP75OUx11inHUpIy67FLzIgYc0gjfAGKRLDiECXOXkkne",
+    result_type="markdown",
+    num_workers=1,
+    verbose=True,
+    language="en",
+)
+
+FAISS_INDEX_PATH = "faiss_index\index.faiss"
+
+def process_uploaded_files(uploaded_files):
+    all_text = ""
+    
+    for uploaded_file in uploaded_files:
+        file_path = f"temp_{uploaded_file.name}"
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getvalue())
+
+        if file_path.lower().endswith('.txt'):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                all_text += f.read() + "\n"
+        else:
+            documents = parser.load_data(file_path)
+            for doc in documents:
+                all_text += doc.text_resource.text + "\n"
+
+        os.remove(file_path)
+    
+    return all_text
+
+def get_vector_database(uploaded_files=None):
+    embed_model = HuggingFaceEmbeddings(model_name="BAAI/bge-m3")
+    faiss_folder = "faiss_index"
+    if os.path.exists(faiss_folder) and not uploaded_files:
+        try:
+            vector_store = FAISS.load_local(faiss_folder, embed_model, allow_dangerous_deserialization=True)
+            return vector_store
+        except Exception as e:
+            st.error(f"Error loading FAISS index: {str(e)}")
+            return None
+    if uploaded_files:
+        text_content = process_uploaded_files(uploaded_files)
+        if not text_content:
+            return None
+            
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=256, 
+            chunk_overlap=64
         )
-        return embeddings
-    except Exception as e:
-        st.error(f"Error setting up model: {str(e)}")
-        return None
-def load_databases(embeddings):
-    try:
-        customer_db = FAISS.load_local("customer_index", embeddings, allow_dangerous_deserialization=True)
-        crm_db = FAISS.load_local("crm_index", embeddings, allow_dangerous_deserialization=True)
-        return customer_db, crm_db
-    except Exception as e:
-        st.error(f"Error loading databases: {str(e)}")
-        return None, None
-
-embeddings = setup_model()
-if embeddings:
-    customer_db, crm_db = load_databases(embeddings)
-    if customer_db:
-        retriever = customer_db.as_retriever(search_kwargs={"k": 2})
+        chunks = text_splitter.split_text(text_content)
+        documents = [Document(page_content=chunk) for chunk in chunks]
+        vector_store = FAISS.from_documents(
+            documents=documents, 
+            embedding=embed_model
+        )
+        os.makedirs(faiss_folder, exist_ok=True)
+        vector_store.save_local(faiss_folder)
         
-        llm = ChatOpenAI(
-            api_key='sk-GqA4Uj6iZXaykbOzIlFGtmdJr6VqiX94NhhjPZaf81kylRzh',
-            base_url='https://api.opentyphoon.ai/v1',
-            model_name="typhoon-v2-70b-instruct"
-        )
+        return vector_store
+        
+    return None
 
-        template = """
+def create_chatbot(vector_db):
+    retriever = vector_db.as_retriever(search_kwargs={'k': 5}) if vector_db else None
+    template = """
         You are a Salesman Assistant AI designed to enhance a CRM system.
         Your responsibilities include:
         - Reminding salespeople of daily tasks
@@ -99,195 +112,65 @@ if embeddings:
         Salesperson Query: {question}
         """
 
-        prompt = ChatPromptTemplate.from_template(template)
-        qa_chain = RetrievalQA.from_chain_type(
+    chat_prompt = ChatPromptTemplate.from_template(template)
+    qa_chain = RetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",
             retriever=retriever,
-            chain_type_kwargs={"prompt": prompt}
+            chain_type_kwargs={"prompt": chat_prompt}
         )
 
-        initial_response = qa_chain.invoke({
+    initial_response = qa_chain.invoke({
             "query": "งานในวันนี้มีอะไรบ้าง โปรดระบุรายการนัดหมายเข้าเยี่ยมลูกค้า การติดตามหนี้ และการจัดส่ง"
         })["result"]
-        st.session_state.messages.append({
+    st.session_state.messages.append({
             "role": "assistant", 
             "content": f"👋 สวัสดีตอนเช้าค่ะ\n\n{initial_response}"
         })
 
-st.markdown("""
-    <style>
-        .chat-container { max-width: 500px; margin: auto; }
-        .user-bubble {
-            background-color: #de152c;
-            padding: 10px;
-            border-radius: 15px;
-            max-width: 80%;
-            margin-bottom: 10px;
-            float: right;
-            clear: both;
-            color: white;
-        }
-        .assistant-bubble {
-            background-color: #f0f0f0;
-            padding: 10px;
-            border-radius: 15px;
-            max-width: 80%;
-            margin-bottom: 10px;
-            float: left;
-            clear: both;
-        }
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: black;
-            display: flex;
-            justify-content: space-around;
-            padding: 10px 0;
-            border-radius: 20px 20px 0 0;
-        }
-        .nav-item {
-            color: gray;
-            font-size: 12px;
-            text-align: center;
-            cursor: pointer;
-        }
-        .nav-item img {
-            width: 24px;
-            height: 24px;
-        }
-        .selected { color: red; }
-        .title-container {
-            text-align: center;
-            font-size: 32px;
-            font-weight: bold;
-            padding: 10px;
-        }
-    </style>
-""", unsafe_allow_html=True)
+    return RetrievalQA.from_chain_type(
+        llm=llm,
+        chain_type="stuff",
+        retriever=retriever,
+        chain_type_kwargs={"prompt": chat_prompt}
+    ) if retriever else None
 
-st.markdown('<div class="title-container">ShopChat Admin</div>', unsafe_allow_html=True)
-for msg in st.session_state.messages:
-    bubble_class = "user-bubble" if msg["role"] == "user" else "assistant-bubble"
-    st.markdown(f'<div class="{bubble_class}">{msg["content"]}</div>', unsafe_allow_html=True)
+def main():
+    st.markdown(
+        """
+        <div style="text-align: center;">
+            <img src="https://www.gosoft.co.th/wp-content/uploads/2019/01/cropped-LOGO-gosoft.png" width="500">
+            <h1>ShopChat Sale Assistance</h1>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    uploaded_files = st.file_uploader("Upload documents (optional)", accept_multiple_files=True)
 
-user_input = st.chat_input("Ask about customers or CRM contacts...")
-if user_input:
-    st.session_state.messages.append({"role": "user", "content": user_input})
-    st.markdown(f'<div class="user-bubble">{user_input}</div>', unsafe_allow_html=True)
-    with st.spinner("Fetching customer insights..."):
-        try:
-            response = qa_chain.invoke({"query": user_input})["result"]
-        except Exception as e:
-            response = f"Error: {e}"
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    with st.spinner('Loading knowledge base...'):
+        vector_db = get_vector_database(uploaded_files)
+    if not vector_db and os.path.exists(FAISS_INDEX_PATH):
+        st.warning("Failed to load the FAISS index. Please try re-uploading files.")
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+    user_input = st.chat_input("Ask me anything...")
+
+    if user_input:
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        with st.chat_message("user"):
+            st.markdown(user_input)
     
-    st.session_state.messages.append({"role": "assistant", "content": response})
-    st.markdown(f'<div class="assistant-bubble">{response}</div>', unsafe_allow_html=True)
-
-def set_tab(tab_name):
-    st.session_state.selected_tab = tab_name
-
-tab_titles = {
-    "3d": "3D Service",
-    "schedule": "Schedule",
-    "chatbot": "Chatbot",
-    "more": "อื่นๆ"
-}
-
-if st.session_state.selected_tab in tab_titles:
-    st.title(tab_titles[st.session_state.selected_tab])
-
-shopchat = "selected" if st.session_state.selected_tab == "shopchat" else ""
-three_d = "selected" if st.session_state.selected_tab == "3d" else ""
-schedule = "selected" if st.session_state.selected_tab == "schedule" else ""
-chatbot = "selected" if st.session_state.selected_tab == "chatbot" else ""
-more = "selected" if st.session_state.selected_tab == "more" else ""
-
-st.markdown(f"""
-    <div class="bottom-nav">
-        <div class="nav-item {shopchat}" onclick="setTab('shopchat')">
-            <img src="https://cdn-icons-png.flaticon.com/512/25/25694.png" alt="ShopChat"><br>
-            ShopChat
-        </div>
-        <div class="nav-item {three_d}" onclick="setTab('3d')">
-            <img src="https://cdn-icons-png.flaticon.com/512/103/103093.png" alt="3D"><br>
-            3D
-        </div>
-        <div class="nav-item {schedule}" onclick="setTab('schedule')">
-            <img src="https://cdn-icons-png.flaticon.com/512/2991/2991112.png" alt="Schedule"><br>
-            Schedule
-        </div>
-        <div class="nav-item {chatbot}" onclick="setTab('chatbot')">
-            <img src="https://cdn-icons-png.flaticon.com/512/2950/2950745.png" alt="Chatbot"><br>
-            Chatbot
-        </div>
-        <div class="nav-item {more}" onclick="setTab('more')">
-            <img src="https://cdn-icons-png.flaticon.com/512/566/566048.png" alt="More"><br>
-            อื่นๆ
-        </div>
-    </div>
-    
-    <script>
-        async function setTab(tabName) {{
-            const params = new URLSearchParams(window.location.search);
-            params.set('_session', JSON.stringify({{"selected_tab": tabName}}));
-            await fetch('?' + params.toString(), {{method: 'POST'}});
-            window.location.reload();
-        }}
-    </script>
-""", unsafe_allow_html=True)
-
-if "initialized" not in st.session_state:
-    st.session_state.initialized = False
-
-st.markdown("""
-    <style>
-        /* Existing CSS styles... */
-        
-        .suggestion-button {
-            background-color: #f0f0f0;
-            border: none;
-            padding: 8px 16px;
-            margin: 4px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        
-        .suggestion-button:hover {
-            background-color: #de152c;
-            color: white;
-        }
-        
-        .suggestions-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin: 16px 0;
-            justify-content: center;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-st.markdown('<div class="suggestions-container">', unsafe_allow_html=True)
-suggestions = [
-    "ข้อมูลลูกค้าที่ต้องเข้าพบ", 
-    "ความสนใจของลูกค้า"
-]
-
-for suggestion in suggestions:
-    if st.button(suggestion, key=suggestion, help=f"Click to ask about {suggestion}"):
-        st.session_state.messages.append({"role": "user", "content": suggestion})
-        
-        with st.spinner("Getting information..."):
-            try:
-                response = qa_chain.invoke({"query": suggestion})["result"]
-            except Exception as e:
-                response = f"Error: {e}"
-                
+        if vector_db:
+            chatbot = create_chatbot(vector_db)
+            response = chatbot.run(user_input) if chatbot else "I'm unable to retrieve relevant data, but I'll do my best!"
+        else:
+            response = llm.predict(user_input)
+        with st.chat_message("assistant"):
+            st.markdown(response)
         st.session_state.messages.append({"role": "assistant", "content": response})
-        st.rerun()
 
-st.markdown('</div>', unsafe_allow_html=True)
+if __name__ == "__main__":
+    main()
