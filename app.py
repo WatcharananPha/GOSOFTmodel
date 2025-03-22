@@ -30,8 +30,20 @@ if "initialized" not in st.session_state:
 st.set_page_config(
     page_title="ShopChat Admin",
     page_icon="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ4QlDNp1fVoSBblzpuijyg_iRravrUZTTdUQ&s",
-    layout="centered"
+    layout="centered",
+    initial_sidebar_state="collapsed"
 )
+
+st.markdown("""
+    <style>
+        [data-testid="stSidebar"][aria-expanded="true"] {
+            background-color: #ffffff;
+        {
+            .stApp {
+                background-color: #ffffff;
+            }
+    </style>
+""", unsafe_allow_html=True)     
 
 def setup_model():
     try:
@@ -94,6 +106,14 @@ if embeddings:
             retriever=retriever,
             chain_type_kwargs={"prompt": prompt}
         )
+
+        initial_response = qa_chain.invoke({
+            "query": "งานในวันนี้มีอะไรบ้าง โปรดระบุรายการนัดหมายเข้าเยี่ยมลูกค้า การติดตามหนี้ และการจัดส่ง"
+        })["result"]
+        st.session_state.messages.append({
+            "role": "assistant", 
+            "content": f"👋 สวัสดีตอนเช้าค่ะ\n\n{initial_response}"
+        })
 
 st.markdown("""
     <style>
@@ -210,12 +230,11 @@ st.markdown(f"""
     </div>
     
     <script>
-        function setTab(tabName) {{
+        async function setTab(tabName) {{
             const params = new URLSearchParams(window.location.search);
             params.set('_session', JSON.stringify({{"selected_tab": tabName}}));
-            fetch('?' + params.toString(), {{method: 'POST'}}).then(() => {{
-                window.location.reload();
-            }});
+            await fetch('?' + params.toString(), {{method: 'POST'}});
+            window.location.reload();
         }}
     </script>
 """, unsafe_allow_html=True)
@@ -251,22 +270,6 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
-
-if not st.session_state.initialized:
-    try:
-        initial_response = qa_chain.invoke({
-            "query": "งานในวันนี้มีอะไรบ้าง โปรดระบุรายการนัดหมายเข้าเยี่ยมลูกค้า การชำระเงิน และการจัดส่ง"
-        })["result"]
-        st.session_state.messages.append({
-            "role": "assistant", 
-            "content": f"👋 สวัสดีตอนเช้าค่ะ นี่คืองานของคุณสำหรับวันนี้:\n\n{initial_response}"
-        })
-    except Exception as e:
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": "👋 สวัสดีตอนเช้าค่ะ วันนี้ฉันพร้อมช่วยคุณทำงานแล้วค่ะ"
-        })
-    st.session_state.initialized = True
 
 st.markdown('<div class="suggestions-container">', unsafe_allow_html=True)
 suggestions = [
